@@ -1,3 +1,5 @@
+Forked from [AFK-surf/mini-control](https://github.com/AFK-surf/mini-control) refined by Fable 5
+
 # minis
 
 Mac mini cluster management system for browser-controlled macOS VMs.
