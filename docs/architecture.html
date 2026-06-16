@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Mini Control · Architecture</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github.min.css"
+      integrity="sha384-eFTL69TLRZTkNfYZOLM+G04821K1qZao/4QLJbet1pP4tcF+fdXq/9CdqAbWRl/L"
+      crossorigin="anonymous"
+      media="(prefers-color-scheme: light)">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github-dark.min.css"
+      integrity="sha384-wH75j6z1lH97ZOpMOInqhgKzFkAInZPPSPlZpYKYTOqsaizPvhQZmAtLcPKXpLyH"
+      crossorigin="anonymous"
+      media="(prefers-color-scheme: dark)">
+</head>
+<body>
+<nav class="topbar" aria-label="Primary">
+  <a class="home" href="index.html">Mini Control</a>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html" aria-current="page">Architecture</a>
+  <a href="api.html">API</a>
+  <a href="deploy.html">Deploy</a>
+</nav>
+
+<main>
+<h1>Architecture</h1>
+<p class="lede">Browser to control plane to Mac mini to macOS VM. The minis dial out only; the public edge is a Cloudflare Tunnel, so no host needs a public IP or port forwarding.</p>
+
+<nav class="on-this-page" aria-label="On this page">
+  <strong>On this page</strong>
+  <a href="#planes">Planes</a>
+  <a href="#hostnames">Two hostnames</a>
+  <a href="#terminal">Terminal</a>
+  <a href="#vnc">VNC relay</a>
+  <a href="#decisions">Design decisions</a>
+</nav>
+
+<h2 id="planes">Planes</h2>
+<pre><code>Browser ── Cloudflare edge (TLS + Access) ──┐ browser host        ┌ worker host
+                                            ▼                     ▼
+        Linux server (Docker Compose)  cloudflared ── server:5496 (Go)
+            ├─ postgres
+            ├─ server  (REST + WS relay + static frontend + releases)
+            └─ cloudflared (outbound tunnel)
+                                            ▲ (Mac-initiated HTTPS / WebSocket)
+        Mac mini  minicontrol-worker (Swift, launchd)
+            ├─ register / heartbeat / auto-update
+            ├─ tart ─ macOS VM pool
+            └─ ProxyRelay: WebSocket ⇄ VM 5900 / 22</code></pre>
+
+<table>
+<thead><tr><th>Plane</th><th>Tech</th><th>Responsibility</th></tr></thead>
+<tbody>
+<tr><td>Control plane</td><td>Go</td><td>REST API, WebSocket relay, static frontend, signed binary distribution.</td></tr>
+<tr><td>Worker</td><td>Swift (<code>launchd</code>)</td><td>Register, heartbeat, drive <code>tart</code> VMs, relay VNC/SSH to the server.</td></tr>
+<tr><td>Browser</td><td>React + TS</td><td>Terminal (<code>xterm.js</code>) and VNC remote desktop over WebSocket.</td></tr>
+</tbody>
+</table>
+
+<h2 id="hostnames">Two hostnames, one origin</h2>
+<p>Both public hostnames route to the same <code>server:5496</code>; the server keys on the <code>Host</code> header (<code>requireWorkerHost</code> / <code>requireBrowserHost</code>). Requests on the wrong host get a 404.</p>
+<ul>
+<li><strong>Worker host</strong> — <code>/install.sh</code>, <code>/api/v1/workers/register</code>, heartbeat, VM state, <code>/releases/*</code>, pending proxy sessions. <em>No Cloudflare Access</em> (Bearer-token auth).</li>
+<li><strong>Browser host</strong> — <code>/api/v1/me</code>, <code>/my-workstation*</code>, <code>/browser/*</code>. <em>Cloudflare Access</em>; the origin validates <code>Cf-Access-Jwt-Assertion</code>.</li>
+</ul>
+<p>Confining member endpoints to the Access host is itself a security control: the unprotected worker host cannot reach them.</p>
+
+<h2 id="terminal">Terminal</h2>
+<p>The browser opens <code>GET /api/v1/browser/terminal/ws</code>. Cloudflare Access authenticates the upgrade, then the server bridges SSH on its side, so the browser only needs <code>xterm.js</code>. Input and resize travel as JSON; output returns as binary frames.</p>
+
+<h2 id="vnc">VNC relay</h2>
+<ol>
+<li>Browser creates a proxy session (<code>POST /api/v1/browser/proxy-sessions</code>, port <code>5900</code>).</li>
+<li>The worker polls <code>GET /api/v1/proxy/sessions/pending</code> and picks it up.</li>
+<li>Both sides connect <code>GET /api/v1/proxy/ws</code> — one <code>role=client</code>, one <code>role=worker</code> — and the server relays bytes between the two sockets.</li>
+<li>The worker bridges TCP to the VM&rsquo;s <code>5900</code> on the local network.</li>
+</ol>
+
+<h2 id="decisions">Design decisions</h2>
+<ul>
+<li>REST + WebSocket only; workers talk to the server over HTTPS plus WebSocket proxy sessions.</li>
+<li>TLS terminates at the Cloudflare edge; the origin stays plain HTTP on the compose network. Workers pin the certificate fingerprint they observe (the edge cert).</li>
+<li>The frontend is built by Docker and baked into the server image; the Go server serves it.</li>
+<li>Workers check for new releases on heartbeat; the server validates Mach-O code signatures on upload against a required signing identity.</li>
+<li>VNC rides the WebSocket relay; the browser terminal uses a server-side SSH bridge.</li>
+</ul>
+
+<nav class="pager" aria-label="Pagination">
+  <a class="prev" href="index.html">Overview</a>
+  <a class="next" href="api.html">API</a>
+</nav>
+
+<footer>
+Mini Control · <a href="https://github.com/Lakr233/minis">github.com/Lakr233/minis</a>
+</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"
+        integrity="sha384-GdEWAbCjn+ghjX0gLx7/N1hyTVmPAjdC2OvoAA0RyNcAOhqwtT8qnbCxWle2+uJX"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/bash.min.js"
+        integrity="sha384-83HvQQdGTWqnRLmgm19NjCb1+/awKJGytUX9sm3HJb2ddZ9Fs1Bst2bZogFjt9rr"
+        crossorigin="anonymous"></script>
+<script>hljs.highlightAll();</script>
+</body>
+</html>

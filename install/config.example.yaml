@@ -1,0 +1,15 @@
+# mini-control worker configuration
+# This file is deployed to /etc/minicontrol/config.yaml by setup-host.sh
+
+server_address: "minis-api.example.com"
+worker_token: ""
+enrollment_token: ""
+base_image: "minictl-tahoe-base"
+pool_size: 2
+ssh_username: "admin"
+ssh_password: "admin"
+http_port: 443
+use_https: true
+tls_cert_fingerprint: ""
+host_keychain_password: ""
+log_level: "info"

@@ -1,0 +1,47 @@
+# Compiled binaries
+server/minicontrol-server
+worker/.build/
+
+# IDE
+.vscode/
+.swiftpm/
+Package.resolved
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/public/vendor/
+frontend/package-lock.json
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+.pnpm-store/
+pnpm-debug.log*
+
+# Secrets (never commit real credentials)
+*.pem
+*.key
+deploy_key
+.env
+server-config.yaml
+deploy/config.yaml
+install/config.yaml
+deploy/**/.env
+deploy/**/config.yaml
+deploy/**/deploy/config.yaml
+deploy/**/install/config.yaml
+
+# Deploy runtime data
+deploy/mnt/
+deploy/**/mnt/
+deploy/private/
+/app/.tmp-home
+
+# Build output / generated artifacts
+/bin/
+repomix-output.xml

@@ -1,0 +1,22 @@
+http_addr: ":5496"
+database_url: "postgres://minicontrol:minicontrol@postgres:5432/minicontrol?sslmode=disable"
+
+# Public TLS is terminated by Cloudflare Tunnel. Keep the origin on plain HTTP
+# inside the compose network unless you intentionally add origin certificates.
+# tls_cert_file: "/etc/minicontrol/certs/server.crt"
+# tls_key_file: "/etc/minicontrol/certs/server.key"
+
+default_pool_size: 2
+default_base_image: "minictl-tahoe-base"
+worker_public_hostname: "minis-api.example.com"
+browser_public_hostname: "minis.example.com"
+# Generate with: openssl rand -hex 32
+admin_token: "replace-with-admin-token"
+enrollment_token: "replace-with-enrollment-token"
+# Cloudflare Access for browser-facing APIs:
+access_team_domain: "your-team.cloudflareaccess.com"
+access_aud: "replace-with-cloudflare-access-audience"
+access_allowed_email_domain: "example.com"
+
+binary_storage_path: "/var/lib/minicontrol/releases"
+required_signing_identity: "(team: TEAMID, id: MiniControlWorker)"

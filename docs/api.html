@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Mini Control · API</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github.min.css"
+      integrity="sha384-eFTL69TLRZTkNfYZOLM+G04821K1qZao/4QLJbet1pP4tcF+fdXq/9CdqAbWRl/L"
+      crossorigin="anonymous"
+      media="(prefers-color-scheme: light)">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github-dark.min.css"
+      integrity="sha384-wH75j6z1lH97ZOpMOInqhgKzFkAInZPPSPlZpYKYTOqsaizPvhQZmAtLcPKXpLyH"
+      crossorigin="anonymous"
+      media="(prefers-color-scheme: dark)">
+</head>
+<body>
+<nav class="topbar" aria-label="Primary">
+  <a class="home" href="index.html">Mini Control</a>
+  <a href="index.html">Overview</a>
+  <a href="architecture.html">Architecture</a>
+  <a href="api.html" aria-current="page">API</a>
+  <a href="deploy.html">Deploy</a>
+</nav>
+
+<main>
+<h1>REST API</h1>
+<p class="lede">Base URL <code>https://&lt;server&gt;</code>. Most endpoints take a Bearer token; browser endpoints are authenticated by Cloudflare Access. Token comparison is constant-time.</p>
+
+<nav class="on-this-page" aria-label="On this page">
+  <strong>On this page</strong>
+  <a href="#auth">Auth</a>
+  <a href="#public">Public</a>
+  <a href="#member">Member</a>
+  <a href="#workers">Workers</a>
+  <a href="#vms">VMs</a>
+  <a href="#proxy">Proxy</a>
+  <a href="#releases">Releases</a>
+</nav>
+
+<h2 id="auth">Authentication</h2>
+<pre><code class="language-bash">Authorization: Bearer &lt;admin_token | worker_token&gt;</code></pre>
+<p>Browser-facing member endpoints expect the Access JWT in <code>Cf-Access-Jwt-Assertion</code>, validated against the configured audience and issuer.</p>
+
+<h2 id="public">Public</h2>
+<table>
+<thead><tr><th>Endpoint</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/v1/health</code></td><td>Health check &mdash; <code>{"status":"ok"}</code>.</td></tr>
+<tr><td><code>GET /install.sh</code></td><td>Worker setup script (server address injected at serve time).</td></tr>
+</tbody>
+</table>
+
+<h2 id="member">Member (Cloudflare Access)</h2>
+<table>
+<thead><tr><th>Endpoint</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/v1/me</code></td><td>Current authenticated member.</td></tr>
+<tr><td><code>GET /api/v1/browser/workers</code></td><td>Workers and their reported VMs for the browser.</td></tr>
+<tr><td><code>GET /api/v1/my-workstation</code></td><td>The member&rsquo;s dedicated workstation (resumed if stopped).</td></tr>
+<tr><td><code>POST /api/v1/my-workstation/claim</code></td><td>Claim or move a workstation; optional <code>worker_id</code>.</td></tr>
+<tr><td><code>POST /api/v1/my-workstation/release</code></td><td>Mark the workstation for deletion.</td></tr>
+<tr><td><code>POST /api/v1/browser/proxy-sessions</code></td><td>Create a browser proxy session for port <code>5900</code> or <code>22</code>.</td></tr>
+<tr><td><code>GET /api/v1/browser/terminal/ws</code></td><td>WebSocket terminal; the server bridges SSH.</td></tr>
+</tbody>
+</table>
+
+<h2 id="workers">Workers</h2>
+<table>
+<thead><tr><th>Endpoint</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>POST /api/v1/workers/register</code></td><td>Register with <code>enrollment_token</code> (first install) or a per-worker <code>worker_token</code>; issues a worker token on enrollment.</td></tr>
+<tr><td><code>GET /api/v1/workers</code></td><td>List workers and VMs (auth).</td></tr>
+<tr><td><code>POST /api/v1/workers/{id}/heartbeat</code></td><td>Heartbeat; updates VM states (auth).</td></tr>
+<tr><td><code>POST /api/v1/hostname/assign</code></td><td>Assign a sequential <code>mac-N</code> hostname (enrollment auth).</td></tr>
+</tbody>
+</table>
+
+<h2 id="vms">VMs</h2>
+<table>
+<thead><tr><th>Endpoint</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>PUT /api/v1/vms/{id}/state</code></td><td>Update VM state; <code>destroying</code> deletes the record (auth).</td></tr>
+</tbody>
+</table>
+<p>VM states: <code>starting</code> · <code>bootstrapping</code> · <code>ready</code> · <code>busy</code> · <code>destroying</code> · <code>failed</code>. Worker status: <code>active</code> · <code>draining</code> · <code>offline</code>.</p>
+
+<h2 id="proxy">Proxy</h2>
+<table>
+<thead><tr><th>Endpoint</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>POST /api/v1/proxy/sessions</code></td><td>Create a TCP proxy session (e.g. VNC forwarding) for a VM or host (auth).</td></tr>
+<tr><td><code>GET /api/v1/proxy/sessions/pending</code></td><td>Pending sessions for a worker (auth).</td></tr>
+<tr><td><code>GET /api/v1/proxy/ws</code></td><td>WebSocket relay; <code>role=client|worker</code>, token via query param.</td></tr>
+</tbody>
+</table>
+
+<h2 id="releases">Releases</h2>
+<table>
+<thead><tr><th>Endpoint</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/v1/releases/latest</code></td><td>Metadata for the most recent release.</td></tr>
+<tr><td><code>GET /api/v1/releases/download/{version}</code></td><td>Download a release binary.</td></tr>
+<tr><td><code>PUT /api/v1/releases/upload/{version}</code></td><td>Upload a signed binary (auth); validated against <code>required_signing_identity</code>.</td></tr>
+</tbody>
+</table>
+
+<p class="muted">Full request/response shapes live in <code>docs/api.md</code> in the repository.</p>
+
+<nav class="pager" aria-label="Pagination">
+  <a class="prev" href="architecture.html">Architecture</a>
+  <a class="next" href="deploy.html">Deploy</a>
+</nav>
+
+<footer>
+Mini Control · <a href="https://github.com/Lakr233/minis">github.com/Lakr233/minis</a>
+</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"
+        integrity="sha384-GdEWAbCjn+ghjX0gLx7/N1hyTVmPAjdC2OvoAA0RyNcAOhqwtT8qnbCxWle2+uJX"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/bash.min.js"
+        integrity="sha384-83HvQQdGTWqnRLmgm19NjCb1+/awKJGytUX9sm3HJb2ddZ9Fs1Bst2bZogFjt9rr"
+        crossorigin="anonymous"></script>
+<script>hljs.highlightAll();</script>
+</body>
+</html>
